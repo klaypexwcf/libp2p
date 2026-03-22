@@ -41,7 +41,7 @@ public class Client {
   private final Map<String, ClientTree> clientTrees = new HashMap<>();
 
   private final ScheduledExecutorService syncer = Executors.newSingleThreadScheduledExecutor(
-      BasicThreadFactory.builder().namingPattern("dnsSyncer").build());
+      new BasicThreadFactory.Builder().namingPattern("dnsSyncer").build());
 
   public Client() {
     this.cache = CacheBuilder.newBuilder()

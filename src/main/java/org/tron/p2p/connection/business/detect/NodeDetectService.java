@@ -36,7 +36,7 @@ public class NodeDetectService implements MessageProcess {
       .newBuilder().maximumSize(5000).expireAfterWrite(1, TimeUnit.HOURS).build();
 
   private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
-      BasicThreadFactory.builder().namingPattern("nodeDetectService").build());
+      new BasicThreadFactory.Builder().namingPattern("nodeDetectService").build());
 
   private final long NODE_DETECT_THRESHOLD = 5 * 60 * 1000;
 

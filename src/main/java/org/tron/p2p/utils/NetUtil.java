@@ -220,7 +220,7 @@ public class NetUtil {
   private static String getIp(List<String> multiSrcUrls, boolean isAskIpv4) {
     int threadSize = multiSrcUrls.size();
     ExecutorService executor = Executors.newFixedThreadPool(threadSize,
-        BasicThreadFactory.builder().namingPattern("getIp-%d").build());
+        new BasicThreadFactory.Builder().namingPattern("getIp-%d").build());
     CompletionService<String> completionService = new ExecutorCompletionService<>(executor);
 
     for (String url : multiSrcUrls) {
