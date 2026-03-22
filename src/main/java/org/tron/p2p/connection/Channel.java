@@ -30,6 +30,7 @@ import org.tron.p2p.discover.Node;
 import org.tron.p2p.exception.P2pException;
 import org.tron.p2p.stats.TrafficStats;
 import org.tron.p2p.utils.ByteArray;
+import org.tron.p2p.protos.Connect.DisconnectReason;
 
 @Slf4j(topic = "net")
 public class Channel {
