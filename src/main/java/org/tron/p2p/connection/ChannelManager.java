@@ -21,6 +21,9 @@ import org.tron.p2p.connection.business.handshake.DisconnectCode;
 import org.tron.p2p.connection.business.handshake.HandshakeService;
 import org.tron.p2p.connection.business.keepalive.KeepAliveService;
 import org.tron.p2p.connection.business.pool.ConnPoolService;
+import org.tron.p2p.connection.business.random.DialTimePolicy;
+import org.tron.p2p.connection.business.random.RandomConnectService;
+import org.tron.p2p.connection.business.random.TargetStateRepo;
 import org.tron.p2p.connection.message.Message;
 import org.tron.p2p.connection.message.base.P2pDisconnectMessage;
 import org.tron.p2p.connection.socket.PeerClient;
@@ -31,6 +34,7 @@ import org.tron.p2p.exception.P2pException.TypeEnum;
 import org.tron.p2p.protos.Connect.DisconnectReason;
 import org.tron.p2p.utils.ByteArray;
 import org.tron.p2p.utils.NetUtil;
+import software.amazon.awssdk.auth.credentials.internal.StaticResourcesEndpointProvider;
 
 @Slf4j(topic = "net")
 public class ChannelManager {
@@ -39,6 +43,8 @@ public class ChannelManager {
   private static NodeDetectService nodeDetectService;
 
   private static PeerServer peerServer;
+
+  private static RandomConnectService randomConnectService;
 
   @Getter
   private static PeerClient peerClient;
@@ -74,8 +80,23 @@ public class ChannelManager {
     keepAliveService.init();
     connPoolService.init(peerClient);
     nodeDetectService.init(peerClient);
+    randomConnectService = new RandomConnectService(
+            peerClient,
+            new TargetStateRepo(),
+            new DialTimePolicy(30_000L,   // 30s 网格
+                    60_000L,   // 单节点两次尝试至少 60s
+                    200L       // 最小提前量，避免“来不及”还硬赶
+                    ),
+            60_000L,   // cooldownMillis
+            50L);
+    randomConnectService.start();
   }
-
+  public static Channel getChannel(InetSocketAddress address) {
+    if (address == null) {
+      return null;
+    }
+    return channels.get(address);
+  }
   public static void connect(InetSocketAddress address) {
     peerClient.connect(address.getAddress().getHostAddress(), address.getPort(),
         ByteArray.toHexString(NetUtil.getNodeId()));
@@ -196,6 +217,7 @@ public class ChannelManager {
     peerServer.close();
     peerClient.close();
     nodeDetectService.close();
+    randomConnectService.stop();
   }
 
 
@@ -228,6 +250,8 @@ public class ChannelManager {
         nodeDetectService.processMessage(channel, message);
         break;
       case DISCONNECT:
+        P2pDisconnectMessage disconnectMessage = (P2pDisconnectMessage) message;
+        channel.setDisconnectReason(disconnectMessage.getReason());
         channel.close();
         break;
       default:

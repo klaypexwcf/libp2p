@@ -81,6 +81,26 @@ public class PeerClient {
     return channelFuture;
   }
 
+  public ChannelFuture connectManagedAsync(Node node, ChannelFutureListener listener) {
+    ChannelFuture channelFuture = connectAsync(
+            node.getPreferInetSocketAddress().getAddress().getHostAddress(),
+            node.getPort(),
+            node.getId() == null ? Hex.toHexString(NetUtil.getNodeId()) : node.getHexId(),
+            false,
+            false   // 关键：禁用 close 后自动 triggerConnect
+    );
+
+    if (ChannelManager.isShutdown) {
+      return null;
+    }
+
+    if (channelFuture != null && listener != null) {
+      channelFuture.addListener(listener);
+    }
+
+    return channelFuture;
+  }
+
   private ChannelFuture connectAsync(String host, int port, String remoteId,
       boolean discoveryMode, boolean trigger) {
 

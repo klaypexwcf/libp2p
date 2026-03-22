@@ -75,6 +75,9 @@ public class Channel {
   @Getter
   private long avgLatency;
   private long count;
+  @Getter
+  @Setter
+  private volatile DisconnectReason disconnectReason = DisconnectReason.UNKNOWN;
 
   public void init(ChannelPipeline pipeline, String nodeId, boolean discoveryMode) {
     this.discoveryMode = discoveryMode;

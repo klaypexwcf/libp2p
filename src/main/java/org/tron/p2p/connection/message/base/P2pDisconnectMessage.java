@@ -22,7 +22,7 @@ public class P2pDisconnectMessage extends Message {
     this.data = p2pDisconnectMessage.toByteArray();
   }
 
-  private DisconnectReason getReason() {
+  public DisconnectReason getReason() {
     return p2pDisconnectMessage.getReason();
   }
 

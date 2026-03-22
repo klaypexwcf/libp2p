@@ -73,23 +73,23 @@ public class ConnPoolService extends P2pEventHandler {
 
   public void init(PeerClient peerClient) {
     this.peerClient = peerClient;
-    poolLoopExecutor.scheduleWithFixedDelay(() -> {
-      try {
-        connect(false);
-      } catch (Exception t) {
-        log.error("Exception in poolLoopExecutor worker", t);
-      }
-    }, 200, 3600, TimeUnit.MILLISECONDS);
-
-    if (p2pConfig.isDisconnectionPolicyEnable()) {
-      disconnectExecutor.scheduleWithFixedDelay(() -> {
-        try {
-          check();
-        } catch (Exception t) {
-          log.error("Exception in disconnectExecutor worker", t);
-        }
-      }, 30, 30, TimeUnit.SECONDS);
-    }
+//    poolLoopExecutor.scheduleWithFixedDelay(() -> {
+//      try {
+//        connect(false);
+//      } catch (Exception t) {
+//        log.error("Exception in poolLoopExecutor worker", t);
+//      }
+//    }, 200, 3600, TimeUnit.MILLISECONDS);
+//
+//    if (p2pConfig.isDisconnectionPolicyEnable()) {
+//      disconnectExecutor.scheduleWithFixedDelay(() -> {
+//        try {
+//          check();
+//        } catch (Exception t) {
+//          log.error("Exception in disconnectExecutor worker", t);
+//        }
+//      }, 30, 30, TimeUnit.SECONDS);
+//    }
   }
 
   private void addNode(Set<InetSocketAddress> inetSet, Node node) {
