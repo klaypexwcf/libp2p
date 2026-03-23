@@ -89,6 +89,7 @@ public class ChannelManager {
                     ),
             60_000L,   // cooldownMillis
             50L);
+    randomConnectService.init(Parameter.p2pConfig.getActiveNodes());
     randomConnectService.start();
   }
   public static Channel getChannel(InetSocketAddress address) {

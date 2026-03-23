@@ -45,11 +45,17 @@ public class RandomConnectService {
      * 初始化预设目标节点。
      * 当前版本：未指定 t 时，直接设为当前时间。
      */
-    public void init(List<Node> targetNodes) {
+    public void init(List<InetSocketAddress> targetAddresses) {
         long now = System.currentTimeMillis();
 
-        for (Node node : targetNodes) {
+        for (InetSocketAddress address : targetAddresses) {
+            if (address == null) {
+                continue;
+            }
+
+            Node node = new Node(address);
             String key = TargetPeerState.buildKey(node);
+
             if (targetStateRepo.contains(key)) {
                 continue;
             }
