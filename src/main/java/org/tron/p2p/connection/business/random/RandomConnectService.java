@@ -4,6 +4,8 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +30,9 @@ public class RandomConnectService {
             Executors.newSingleThreadScheduledExecutor();
 
     private volatile boolean started = false;
+
+    private final ScheduledExecutorService statsScheduler =
+            Executors.newSingleThreadScheduledExecutor();
 
     public RandomConnectService(PeerClient peerClient,
                                 TargetStateRepo targetStateRepo,
@@ -90,6 +95,7 @@ public class RandomConnectService {
                 scanIntervalMillis,
                 TimeUnit.MILLISECONDS
         );
+        startStatsTask();
 
         log.info("RandomConnectService started");
     }
@@ -97,9 +103,71 @@ public class RandomConnectService {
     public void stop() {
         started = false;
         scheduler.shutdownNow();
+        stopStatsTask();
         log.info("RandomConnectService stopped");
     }
 
+    private void startStatsTask() {
+        statsScheduler.scheduleAtFixedRate(
+                this::safeLogRandomStats,
+                0,
+                150,   // 2.5 min = 150 s
+                TimeUnit.SECONDS
+        );
+    }
+
+    private void stopStatsTask() {
+        statsScheduler.shutdownNow();
+    }
+    private void safeLogRandomStats() {
+        try {
+            logRandomStats();
+        } catch (Throwable t) {
+            log.error("logRandomStats error", t);
+        }
+    }
+    private void logRandomStats() {
+        Set<String> connectedIps = new TreeSet<>();
+        Set<String> connectedRandomEliIps = new TreeSet<>();
+
+        Set<String> unconnectedIps = new TreeSet<>();
+        Set<String> unconnectedRandomEliIps = new TreeSet<>();
+
+        for (TargetPeerState state : targetStateRepo.all()) {
+            String ip = targetIp(state);
+            if (ip == null) {
+                continue;
+            }
+
+            if (state.isConnected()) {
+                connectedIps.add(ip);
+                if (state.getLastRandomEliAt() > 0) {
+                    connectedRandomEliIps.add(ip);
+                }
+            } else {
+                unconnectedIps.add(ip);
+                if (state.getLastRandomEliAt() > 0) {
+                    unconnectedRandomEliIps.add(ip);
+                }
+            }
+        }
+
+        log.info("RANDOM_CONNECTED total={}, ips={}, randomEliIps={}",
+                connectedIps.size(), connectedIps, connectedRandomEliIps);
+
+        log.info("RANDOM_UNCONNECTED total={}, ips={}, randomEliIps={}",
+                unconnectedIps.size(), unconnectedIps, unconnectedRandomEliIps);
+    }
+
+    private String targetIp(TargetPeerState state) {
+        if (state == null
+                || state.getNode() == null
+                || state.getNode().getPreferInetSocketAddress() == null
+                || state.getNode().getPreferInetSocketAddress().getAddress() == null) {
+            return null;
+        }
+        return state.getNode().getPreferInetSocketAddress().getAddress().getHostAddress();
+    }
     private void safeScanAndConnect() {
         try {
             scanAndConnect();
