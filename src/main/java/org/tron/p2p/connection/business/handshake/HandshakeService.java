@@ -41,6 +41,7 @@ public class HandshakeService implements MessageProcess {
         sendHelloMsg(channel, code, msg.getTimestamp());
       }
       logDisconnectReason(channel, getDisconnectReason(code));
+      channel.setDisconnectReason(getDisconnectReason(code));
       channel.close();
       return;
     }
@@ -62,6 +63,7 @@ public class HandshakeService implements MessageProcess {
             msg.getNetworkId(),
             msg.getVersion());
         logDisconnectReason(channel, getDisconnectReason(disconnectCode));
+        channel.setDisconnectReason(getDisconnectReason(disconnectCode));
         channel.close();
         return;
       }
