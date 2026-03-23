@@ -4,12 +4,14 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.tron.p2p.P2pConfig;
 import org.tron.p2p.connection.Channel;
 import org.tron.p2p.connection.ChannelManager;
 import org.tron.p2p.connection.socket.PeerClient;
@@ -46,12 +48,33 @@ public class RandomConnectService {
         this.scanIntervalMillis = scanIntervalMillis;
     }
 
+    private long normalizeBaseTime(long baseTimeMillis, long now) {
+        // 配置时间未早于当前时间，直接使用
+        if (baseTimeMillis >= now) {
+            return baseTimeMillis;
+        }
+
+        // 需要沿着 30s 网格往后推，直到严格晚于 now
+        long gridMillis = 30_000L*2;
+        long delta = now - baseTimeMillis;
+
+        // +1 保证结果严格 > now，而不是等于 now
+        long steps = delta / gridMillis + 1;
+
+        return baseTimeMillis + steps * gridMillis;
+    }
+
     /**
      * 初始化预设目标节点。
      * 当前版本：未指定 t 时，直接设为当前时间。
      */
-    public void init(List<InetSocketAddress> targetAddresses) {
+    public void init(List<InetSocketAddress> targetAddresses, P2pConfig config) {
         long now = System.currentTimeMillis();
+
+        Map<InetSocketAddress, Long> baseTimeMap =
+                (config == null || config.getMyAddressTimeMap() == null)
+                        ? java.util.Collections.emptyMap()
+                        : config.getMyAddressTimeMap();
 
         for (InetSocketAddress address : targetAddresses) {
             if (address == null) {
@@ -65,9 +88,17 @@ public class RandomConnectService {
                 continue;
             }
 
-            long baseTimeMillis = now;
+            Long configuredBaseTime = baseTimeMap.get(address);
+
+            long baseTimeMillis;
+            if (configuredBaseTime != null) {
+                baseTimeMillis = normalizeBaseTime(configuredBaseTime, now);
+            } else {
+                baseTimeMillis = now;
+            }
 
             TargetPeerState state = new TargetPeerState(key, node, baseTimeMillis);
+
             long nextAttemptAt = dialTimePolicy.nextAttemptTime(
                     state.getBaseTimeMillis(),
                     now,
@@ -78,8 +109,8 @@ public class RandomConnectService {
 
             targetStateRepo.put(state);
 
-            log.info("Init random target, key={}, t={}, nextAttemptAt={}",
-                    key, baseTimeMillis, nextAttemptAt);
+            log.info("Init random target, key={}, configuredT={}, finalT={}, nextAttemptAt={}",
+                    key, configuredBaseTime, baseTimeMillis, nextAttemptAt);
         }
     }
 
