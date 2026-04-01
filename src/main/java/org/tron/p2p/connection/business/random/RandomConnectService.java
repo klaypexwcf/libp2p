@@ -118,7 +118,9 @@ public class RandomConnectService {
             if (configuredBaseTime != null) {
                 baseTimeMillis = normalizeBaseTime(configuredBaseTime, now);
             } else {
-                baseTimeMillis = now;
+                long randomOffsetMillis = java.util.concurrent.ThreadLocalRandom.current()
+                        .nextLong(1, 60_000L + 1);
+                baseTimeMillis = now + randomOffsetMillis;
             }
 
             TargetPeerState state = new TargetPeerState(key, node, baseTimeMillis);
