@@ -44,6 +44,7 @@ public class ChannelManager {
 
   private static PeerServer peerServer;
 
+  @Getter
   private static RandomConnectService randomConnectService;
 
   @Getter

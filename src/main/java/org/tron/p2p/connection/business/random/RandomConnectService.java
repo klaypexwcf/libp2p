@@ -36,6 +36,10 @@ public class RandomConnectService {
     private final ScheduledExecutorService statsScheduler =
             Executors.newSingleThreadScheduledExecutor();
 
+    private final long dialingTimeoutMillis = 15_000L;
+
+
+
     public RandomConnectService(PeerClient peerClient,
                                 TargetStateRepo targetStateRepo,
                                 DialTimePolicy dialTimePolicy,
@@ -54,14 +58,34 @@ public class RandomConnectService {
             return baseTimeMillis;
         }
 
-        // 需要沿着 30s 网格往后推，直到严格晚于 now
-        long gridMillis = 30_000L*2;
+        // 沿着 30s 网格往后推，直到严格晚于 now
+        long gridMillis = 30_000L;
         long delta = now - baseTimeMillis;
 
         // +1 保证结果严格 > now，而不是等于 now
         long steps = delta / gridMillis + 1;
 
         return baseTimeMillis + steps * gridMillis;
+    }
+
+    private void cleanupStaleDialing(long now) {
+        for (TargetPeerState state : targetStateRepo.all()) {
+            synchronized (state) {
+                if (state.isDialing() && now - state.getLastAttemptAt() > dialingTimeoutMillis) {
+                    log.warn("Random stale dialing reset, key={}, lastAttemptAt={}",
+                            state.getKey(), state.getLastAttemptAt());
+
+                    state.markConnectFail(now, cooldownMillis);
+                    long nextAttemptAt = dialTimePolicy.nextAttemptTime(
+                            state.getBaseTimeMillis(),
+                            now,
+                            state.getCooldownUntil(),
+                            state.getLastAttemptAt()
+                    );
+                    state.setNextAttemptAt(nextAttemptAt);
+                }
+            }
+        }
     }
 
     /**
@@ -157,6 +181,48 @@ public class RandomConnectService {
             log.error("logRandomStats error", t);
         }
     }
+
+    public void updateAddressTimeMap(Map<InetSocketAddress, Long> newMap) {
+        if (newMap == null) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+
+        for (TargetPeerState state : targetStateRepo.all()) {
+            InetSocketAddress address = state.getNode().getPreferInetSocketAddress();
+            if (address == null) {
+                continue;
+            }
+
+            Long configuredBaseTime = newMap.get(address);
+            if (configuredBaseTime == null) {
+                // 只更新配置里显式给出的节点；未给出的保持原样
+                continue;
+            }
+
+            long normalizedBaseTime = normalizeBaseTime(configuredBaseTime, now);
+
+            synchronized (state) {
+                long oldBaseTime = state.getBaseTimeMillis();
+                state.setBaseTimeMillis(normalizedBaseTime);
+
+                long nextAttemptAt = dialTimePolicy.nextAttemptTime(
+                        state.getBaseTimeMillis(),
+                        now,
+                        state.getCooldownUntil(),
+                        state.getLastAttemptAt()
+                );
+                state.setNextAttemptAt(nextAttemptAt);
+
+                log.info("Update random target t, key={}, oldT={}, newT={}, nextAttemptAt={}",
+                        state.getKey(), oldBaseTime, normalizedBaseTime, nextAttemptAt);
+            }
+        }
+    }
+
+
+
     private void logRandomStats() {
         Set<String> connectedIps = new TreeSet<>();
         Set<String> connectedRandomEliIps = new TreeSet<>();
@@ -209,7 +275,7 @@ public class RandomConnectService {
 
     private void scanAndConnect() {
         long now = System.currentTimeMillis();
-
+        cleanupStaleDialing(now);
         for (TargetPeerState state : targetStateRepo.all()) {
             boolean shouldDial;
             synchronized (state) {
