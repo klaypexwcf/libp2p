@@ -19,6 +19,7 @@ public class P2pPacketDecoder extends MessageToMessageDecoder<DatagramPacket> {
   @Override
   public void decode(ChannelHandlerContext ctx, DatagramPacket packet, List<Object> out)
       throws Exception {
+    System.out.println("UDP RAW from=" + packet.sender() + " len=" + packet.content().readableBytes());
     ByteBuf buf = packet.content();
     int length = buf.readableBytes();
     if (length <= 1 || length >= MAXSIZE) {
@@ -30,7 +31,13 @@ public class P2pPacketDecoder extends MessageToMessageDecoder<DatagramPacket> {
     try {
       UdpEvent event = new UdpEvent(Message.parse(encoded), packet.sender());
       out.add(event);
+      System.out.println("UDP PARSED type=" + event.getMessage().getType()
+              + " from=" + packet.sender());
     } catch (P2pException pe) {
+      System.out.println("UDP PARSE FAIL from=" + packet.sender()
+              + " type=" + encoded[0]
+              + " len=" + encoded.length
+              + " err=" + pe.getMessage());
       if (pe.getType().equals(P2pException.TypeEnum.BAD_MESSAGE)) {
         log.error("Message validation failed, type {}, len {}, address {}", encoded[0],
             encoded.length, packet.sender());
@@ -39,10 +46,18 @@ public class P2pPacketDecoder extends MessageToMessageDecoder<DatagramPacket> {
             packet.sender());
       }
     } catch (InvalidProtocolBufferException e) {
+      System.out.println("UDP PARSE FAIL from=" + packet.sender()
+              + " type=" + encoded[0]
+              + " len=" + encoded.length
+              + " err=" + e.getMessage());
       log.warn("An exception occurred while parsing the message, type {}, len {}, address {}, "
               + "data {}, cause: {}", encoded[0], encoded.length, packet.sender(),
           ByteArray.toHexString(encoded), e.getMessage());
     } catch (Exception e) {
+      System.out.println("UDP PARSE FAIL from=" + packet.sender()
+              + " type=" + encoded[0]
+              + " len=" + encoded.length
+              + " err=" + e.getMessage());
       log.error("An exception occurred while parsing the message, type {}, len {}, address {}, "
               + "data {}", encoded[0], encoded.length, packet.sender(),
           ByteArray.toHexString(encoded), e);
