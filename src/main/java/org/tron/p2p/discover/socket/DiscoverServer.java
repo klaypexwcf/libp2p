@@ -59,9 +59,9 @@ public class DiscoverServer {
               @Override
               public void initChannel(NioDatagramChannel ch)
                   throws Exception {
-                ch.pipeline().addLast(TrafficStats.udp);
-                ch.pipeline().addLast(new ProtobufVarint32LengthFieldPrepender());
-                ch.pipeline().addLast(new ProtobufVarint32FrameDecoder());
+//                ch.pipeline().addLast(TrafficStats.udp);
+//                ch.pipeline().addLast(new ProtobufVarint32LengthFieldPrepender());
+//                ch.pipeline().addLast(new ProtobufVarint32FrameDecoder());
                 ch.pipeline().addLast(new P2pPacketDecoder());
                 MessageHandler messageHandler = new MessageHandler(ch, eventHandler);
                 eventHandler.setMessageSender(messageHandler);
