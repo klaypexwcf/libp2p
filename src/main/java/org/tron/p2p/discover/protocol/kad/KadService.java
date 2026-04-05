@@ -145,6 +145,8 @@ public class KadService implements DiscoverService {
         nodeHandler.handlePong((PongMessage) m);
         break;
       case KAD_FIND_NODE:
+        System.out.println("sender: " + sender+" m.getFrom().getHostV4(): "
+                +m.getFrom().getHostV4()+" node.getPreferInetSocketAddress(): "+n.getPreferInetSocketAddress());
         nodeHandler.handleFindNode((FindNodeMessage) m);
         break;
       case KAD_NEIGHBORS:
