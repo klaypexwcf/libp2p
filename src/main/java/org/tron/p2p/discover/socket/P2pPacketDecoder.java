@@ -32,7 +32,7 @@ public class P2pPacketDecoder extends MessageToMessageDecoder<DatagramPacket> {
       UdpEvent event = new UdpEvent(Message.parse(encoded), packet.sender());
       out.add(event);
       //System.out.println("UDP PARSED type=" + event.getMessage().getType()
-              + " from=" + packet.sender());
+      //        + " from=" + packet.sender());
     } catch (P2pException pe) {
 //      System.out.println("UDP PARSE FAIL from=" + packet.sender()
 //              + " type=" + encoded[0]
